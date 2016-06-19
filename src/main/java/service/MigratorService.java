@@ -20,7 +20,7 @@ import java.util.EnumSet;
 public class MigratorService extends Application<MigratorConfiguration> {
 
     public static void main(String[] args) throws Exception {
-        String[] calArgs = new String[]{"server", "default.yml"};
+        String[] calArgs = new String[]{"server", "migrator.yml"};
         new MigratorService().run(calArgs);
     }
 

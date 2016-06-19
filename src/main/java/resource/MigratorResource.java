@@ -24,7 +24,7 @@ import static java.util.stream.Collectors.toList;
 /**
  * Created by castroneves on 03/04/2016.
  */
-@Path("/")
+@Path("/migrator")
 @Produces({"application/json"})
 public class MigratorResource {
     @Inject

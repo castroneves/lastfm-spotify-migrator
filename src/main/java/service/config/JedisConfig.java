@@ -12,7 +12,6 @@ public class JedisConfig {
     private String host;
 
     private int port;
-    @NotEmpty
     private String password;
 
     @JsonProperty

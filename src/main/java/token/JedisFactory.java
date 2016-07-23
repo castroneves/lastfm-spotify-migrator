@@ -23,7 +23,9 @@ public class JedisFactory {
 
     public Jedis newJedis() {
         JedisShardInfo shardInfo = new JedisShardInfo(host, port);
-        shardInfo.setPassword(password);
+        if (!password.equals("") && !password.equals(null)) {
+            shardInfo.setPassword(password);
+        }
         return new Jedis(shardInfo);
     }
 }

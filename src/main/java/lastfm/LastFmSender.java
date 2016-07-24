@@ -1,21 +1,17 @@
 package lastfm;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.WebResource;
-import com.sun.jersey.api.client.config.ClientConfig;
-import com.sun.jersey.api.client.config.DefaultClientConfig;
 import exception.LastFmException;
 import lastfm.domain.Response;
-import org.codehaus.jackson.jaxrs.JacksonJsonProvider;
+import org.glassfish.jersey.client.JerseyClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import service.config.LastFmConfig;
 
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
-import java.io.IOException;
 
 /**
  * Created by castroneves on 03/04/2016.
@@ -33,15 +29,13 @@ public class LastFmSender {
     public LastFmSender(LastFmConfig config) {
         apiKey = config.getApiKey();
         apiSecret = config.getSecret();
-        ClientConfig cc = new DefaultClientConfig();
-        cc.getClasses().add(JacksonJsonProvider.class);
-        client = Client.create(cc);
+        client = JerseyClientBuilder.newClient();
     }
 
     public Response topTracksRequest(final String username, final int limit, final String period) {
-        WebResource webResource = getTopTracksWebResource(username, limit, period);
-        Response response = webResource.accept(MediaType.APPLICATION_JSON_TYPE).
-                type(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
+        WebTarget webResource = getTopTracksWebResource(username, limit, period);
+        Response response = webResource.request(MediaType.APPLICATION_JSON_TYPE).
+                accept(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
         if (response.getError() != null) {
             throw new LastFmException(response.getMessage());
         }
@@ -49,9 +43,9 @@ public class LastFmSender {
     }
 
     public Response topArtistsRequest(final String username, final int limit, final String period) {
-        WebResource webResource = getTopArtistsWebResource(username, limit, period);
-        Response response = webResource.accept(MediaType.APPLICATION_JSON_TYPE).
-                type(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
+        WebTarget webResource = getTopArtistsWebResource(username, limit, period);
+        Response response = webResource.request(MediaType.APPLICATION_JSON_TYPE).
+                accept(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
         if (response.getError() != null) {
             throw new LastFmException(response.getMessage());
         }
@@ -59,17 +53,17 @@ public class LastFmSender {
     }
 
     public Response lovedTracksRequest(final String username, final int limit) {
-        WebResource webResource = getLovedTracksWebResource(username, limit);
-        Response response = webResource.accept(MediaType.APPLICATION_JSON_TYPE).
-                type(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
+        WebTarget webResource = getLovedTracksWebResource(username, limit);
+        Response response = webResource.request(MediaType.APPLICATION_JSON_TYPE).
+                accept(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
         if (response.getError() != null) {
             throw new LastFmException(response.getMessage());
         }
         return response;
     }
 
-    private WebResource getTopTracksWebResource(final String username, final int limit, final String period){
-        WebResource resource = client.resource(baseUrl);
+    private WebTarget getTopTracksWebResource(final String username, final int limit, final String period){
+        WebTarget resource = client.target(baseUrl);
         return resource
                 .queryParam("method", "user.gettoptracks")
                 .queryParam("api_key", apiKey)
@@ -79,8 +73,8 @@ public class LastFmSender {
                 .queryParam("limit", String.valueOf(limit));
     }
 
-    private WebResource getTopArtistsWebResource(final String username, final int limit, final String period){
-        WebResource resource = client.resource(baseUrl);
+    private WebTarget getTopArtistsWebResource(final String username, final int limit, final String period){
+        WebTarget resource = client.target(baseUrl);
         return resource
                 .queryParam("method", "user.gettopartists")
                 .queryParam("api_key", apiKey)
@@ -90,23 +84,13 @@ public class LastFmSender {
                 .queryParam("limit", String.valueOf(limit));
     }
 
-    private WebResource getLovedTracksWebResource(final String username, final int limit){
-        WebResource resource = client.resource(baseUrl);
+    private WebTarget getLovedTracksWebResource(final String username, final int limit){
+        WebTarget resource = client.target(baseUrl);
         return resource
                 .queryParam("method", "user.getlovedtracks")
                 .queryParam("api_key", apiKey)
                 .queryParam("user", username)
                 .queryParam("format", "json")
                 .queryParam("limit", String.valueOf(limit));
-    }
-
-
-    public static void main(String[] args) {
-        LastFmConfig config = new LastFmConfig();
-        config.setApiKey("0ba3650498bb88d7328c97b461fc3636");
-        LastFmSender sender = new LastFmSender(config);
-
-        Response castroneves121 = sender.topArtistsRequest("castroneves121", 100, "12month");
-        castroneves121.getTopartists().getArtist().stream().forEach(System.out::println);
     }
 }

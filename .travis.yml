@@ -1,0 +1,24 @@
+language: java
+
+jdk:
+  - oraclejdk8
+
+sudo: true
+
+services:
+  - docker
+
+branches:
+  only:
+    - master
+
+addons:
+  apt:
+    packages:
+      - oracle-java8-installer
+
+after_success:
+  - docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+  - docker build -t castroneves/lastfm-spotify-migrator:$TRAVIS_BUILD_NUMBER -t castroneves/lastfm-spotify-migrator:latest .
+  - docker push castroneves/lastfm-spotify-migrator:$TRAVIS_BUILD_NUMBER
+  - docker push castroneves/lastfm-spotify-migrator:latest

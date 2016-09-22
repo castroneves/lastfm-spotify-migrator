@@ -1,6 +1,7 @@
 package spotify.domain;
 
-import org.codehaus.jackson.annotate.JsonProperty;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Created by castroneves on 16/04/2016.

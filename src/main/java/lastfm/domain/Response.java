@@ -1,7 +1,7 @@
 package lastfm.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 
 /**
  * Created by Adam on 27/04/2015.

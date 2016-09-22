@@ -1,6 +1,7 @@
 package spotify;
 
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
  * Created by castroneves on 16/04/2016.

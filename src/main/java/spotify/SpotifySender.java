@@ -3,7 +3,6 @@ package spotify;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.sun.jersey.core.util.MultivaluedMapImpl;
 import org.glassfish.jersey.client.JerseyClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +16,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import java.util.List;
 import java.util.Optional;
@@ -49,7 +49,7 @@ public class SpotifySender {
 
     public AccessToken getAuthToken(final String authCode, final String redirectUrl) {
         WebTarget resource = client.target(baseUrl);
-        MultivaluedMap<String, String> request = new MultivaluedMapImpl();
+        MultivaluedMap<String, String> request = new MultivaluedHashMap<>();
         request.add("grant_type", "authorization_code");
         request.add("code", authCode);
         request.add("redirect_uri", redirectUrl);

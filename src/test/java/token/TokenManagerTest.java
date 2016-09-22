@@ -38,7 +38,7 @@ public class TokenManagerTest {
     public void returnsCachedValue() {
         Jedis jedis = mock(Jedis.class);
         when(jedisFactory.newJedis()).thenReturn(jedis);
-        when(jedis.get("somekey")).thenReturn("{\"accessToken\":\"abcd\",\"tokenType\":\"A\",\"expiresIn\":null,\"refreshToken\":\"sdghdh\"}");
+        when(jedis.get("somekey")).thenReturn("{\"access_token\":\"abcd\",\"token_type\":\"A\",\"expires_in\":null,\"refresh_token\":\"sdghdh\"}");
 
         AccessToken result = tokenManager.getOrLookup("somekey", () -> new AccessToken() );
 

@@ -1,5 +1,6 @@
 package resource;
 
+import com.google.inject.Inject;
 import lastfm.LastFmSender;
 import lastfm.domain.Artist;
 import lastfm.domain.Response;
@@ -12,7 +13,6 @@ import spotify.domain.SpotifyTrackSearchResponse;
 import spotify.domain.UserProfile;
 import token.TokenManager;
 
-import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;

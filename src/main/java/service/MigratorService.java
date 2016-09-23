@@ -3,6 +3,8 @@ package service;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import io.dropwizard.Application;
+import io.dropwizard.configuration.EnvironmentVariableSubstitutor;
+import io.dropwizard.configuration.SubstitutingSourceProvider;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import lastfm.LastFmSender;
@@ -30,6 +32,12 @@ public class MigratorService extends Application<MigratorConfiguration> {
     }
 
     public void initialize(Bootstrap<MigratorConfiguration> bootstrap) {
+        bootstrap.setConfigurationSourceProvider(
+                new SubstitutingSourceProvider(
+                        bootstrap.getConfigurationSourceProvider(),
+                        new EnvironmentVariableSubstitutor()
+                )
+        );
     }
 
     public void run(MigratorConfiguration configuration, Environment environment) throws Exception {

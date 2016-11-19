@@ -1,6 +1,7 @@
 package resource;
 
 import com.google.inject.Inject;
+import domain.response.CreatePlaylistResponse;
 import lastfm.LastFmSender;
 import lastfm.domain.Artist;
 import lastfm.domain.Response;
@@ -38,11 +39,11 @@ public class MigratorResource {
 
     @Path("/toptracks/{limit}/{period}/{username}/{accessToken}/{redirectUrl}")
     @GET
-    public void createSpotifyPlaylistFromLastFmTopTracks(@PathParam("limit") int limit,
-                                                         @PathParam("period") String period,
-                                                         @PathParam("username") String username,
-                                                         @PathParam("accessToken") String accessToken,
-                                                         @PathParam("redirectUrl") String redirectUrl) {
+    public CreatePlaylistResponse createSpotifyPlaylistFromLastFmTopTracks(@PathParam("limit") int limit,
+                                                                           @PathParam("period") String period,
+                                                                           @PathParam("username") String username,
+                                                                           @PathParam("accessToken") String accessToken,
+                                                                           @PathParam("redirectUrl") String redirectUrl) {
         Response response = lastFmSender.topTracksRequest(username, limit, period);
         List<Track> tracks = response.getToptracks().getTracks();
         AccessToken token = tokenManager.getOrLookup(accessToken, () -> spotifySender.getAuthToken(accessToken, redirectUrl));
@@ -56,9 +57,10 @@ public class MigratorResource {
                 .map(s -> s.getTracks().getItems().get(0).getId())
                 .collect(toList());
         UserProfile userProfile = spotifySender.getUserId(token.getAccessToken());
-        String playlistName = "LastFM Top" + limit + " " + period;
+        String playlistName = "LastFM " + username + "Top " + limit + " " + period;
         SpotifyCreatePlaylistResponse playlist = spotifySender.createPlaylist(playlistName, true, userProfile.getId(), token);
         spotifySender.addTracksToPlaylist(playlist.getId(), userProfile.getId(), trackIds, token);
+        return new CreatePlaylistResponse(playlistName, playlist.getId());
     }
 
     @Path("/followartists/{limit}/{period}/{username}/{accessToken}/{redirectUrl}")

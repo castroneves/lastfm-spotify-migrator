@@ -47,9 +47,7 @@ public class MigratorResource {
         Response response = lastFmSender.topTracksRequest(username, limit, period);
         List<Track> tracks = response.getToptracks().getTracks();
         AccessToken token = tokenManager.getOrLookup(accessToken, () -> spotifySender.getAuthToken(accessToken, redirectUrl));
-        List<SpotifyTrackSearchResponse> spotifyTrackSearchResponses = tracks.stream()
-                .map(t -> spotifySender.searchForTrack(t.getArtist(), t.getName(), token))
-                .collect(toList());
+        List<SpotifyTrackSearchResponse> spotifyTrackSearchResponses = spotifySender.searchForTracks(tracks, token);
         List<String> trackIds = spotifyTrackSearchResponses.stream()
                 .filter(s -> s.getTracks() != null)
                 .filter(s -> s.getTracks().getItems() != null)

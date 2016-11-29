@@ -3,14 +3,12 @@ package spotify;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import lastfm.domain.Track;
 import org.glassfish.jersey.client.JerseyClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import service.config.SpotifyConfig;
-import spotify.domain.AccessToken;
-import spotify.domain.SpotifyCreatePlaylistRequest;
-import spotify.domain.SpotifyTrackSearchResponse;
-import spotify.domain.UserProfile;
+import spotify.domain.*;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
@@ -18,8 +16,13 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import static java.util.stream.Collectors.toList;
 
 @Singleton
 public class SpotifySender {
@@ -29,7 +32,8 @@ public class SpotifySender {
 
     private static final String baseUrl = "https://accounts.spotify.com/api/token";
     private static final String tracksUrl = "https://api.spotify.com/v1/me/tracks";
-    private static final int MAX_RETRIES = 3;
+    private static final int MAX_RETRIES = 1;
+    public static final int TIMEOUT_SUBSEQUENT_MILLIS = 4000;
 
     private final String clientId;
     private final String secret;
@@ -69,13 +73,26 @@ public class SpotifySender {
         return response.orElse(new SpotifyTrackSearchResponse());
     }
 
-    public SpotifyArtistSearchResponse searchForArtist(String artist, AccessToken token) {
+    private SearchResponseTuple searchForTrackAsync(Track track, AccessToken token) {
         WebTarget resource = client.target("https://api.spotify.com/v1/search")
                 .queryParam("limit", "1")
-                .queryParam("type", "artist")
-                .queryParam("q", artist);
-        Optional<SpotifyArtistSearchResponse> response = searchWithRetries(resource, token, SpotifyArtistSearchResponse.class);
-        return response.orElse(new SpotifyArtistSearchResponse());
+                .queryParam("type", "track")
+                .queryParam("q", "artist:" + track.getArtist() + " track:" + track.getName());
+
+        Future<SpotifyTrackSearchResponse> future = resource.request().header("Authorization", "Bearer " + token.getAccessToken()).accept(MediaType.APPLICATION_JSON_TYPE).async()
+                .get(SpotifyTrackSearchResponse.class);
+        return new SearchResponseTuple(future, track);
+    }
+
+    private static BlockingResponse blockForResult(SearchResponseTuple responseTuple) {
+        try {
+            Optional<SpotifyTrackSearchResponse> result = Optional.of(responseTuple.getFuture().get(TIMEOUT_SUBSEQUENT_MILLIS, TimeUnit.MILLISECONDS));
+//                logger.info("Returning track {} with errors {}", result.get(),errors);
+
+            return new BlockingResponse(result, responseTuple.getTrack());
+        } catch (Exception e) {
+            return new BlockingResponse(Optional.empty(), responseTuple.getTrack());
+        }
     }
 
     private <T> Optional<T> searchWithRetries(WebTarget resource, AccessToken token, Class<T> clazz) {
@@ -95,6 +112,44 @@ public class SpotifySender {
         }
         logger.warn("Timeout, empty reponse being returned");
         return Optional.empty();
+    }
+
+    public List<SpotifyTrackSearchResponse> searchForTracks(List<Track> inputTracks, AccessToken token) {
+        List<Track> tracks = new ArrayList<>(inputTracks);
+        List<SpotifyTrackSearchResponse> result = new ArrayList<>();
+        List<Track> failures;
+        do {
+            List<SearchResponseTuple> futures = tracks.stream()
+                    .map(t -> searchForTrackAsync(t, token))
+                    .collect(toList());
+
+            List<BlockingResponse> initial = futures.stream()
+                    .map(f -> blockForResult(f))
+                    .collect(toList());
+
+            result.addAll(initial.stream()
+                    .filter(o -> o.getResponse().isPresent())
+                    .map(r -> new SpotifyTrackSearchResponse(r.getResponse().get(), r.getTrack().getRankValue()))
+                    .collect(toList()));
+
+            failures = initial.stream()
+                    .filter(o -> !o.getResponse().isPresent())
+                    .map(BlockingResponse::getTrack)
+                    .collect(toList());
+            tracks = failures;
+            logger.info("Results: {} Failures: {}", result.size(), failures.size());
+        } while (failures.size() > 0);
+        return result.stream().sorted((x, y) -> x.getRank().compareTo(y.getRank())).collect(toList());
+    }
+
+
+    public SpotifyArtistSearchResponse searchForArtist(String artist, AccessToken token) {
+        WebTarget resource = client.target("https://api.spotify.com/v1/search")
+                .queryParam("limit", "1")
+                .queryParam("type", "artist")
+                .queryParam("q", artist);
+        Optional<SpotifyArtistSearchResponse> response = searchWithRetries(resource, token, SpotifyArtistSearchResponse.class);
+        return response.orElse(new SpotifyArtistSearchResponse());
     }
 
 

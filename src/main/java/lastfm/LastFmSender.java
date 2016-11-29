@@ -33,9 +33,11 @@ public class LastFmSender {
     }
 
     public Response topTracksRequest(final String username, final int limit, final String period) {
+        logger.info("Sending request for user {}", username);
         WebTarget webResource = getTopTracksWebResource(username, limit, period);
         Response response = webResource.request(MediaType.APPLICATION_JSON_TYPE).
                 accept(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
+        logger.info("Recieved request for user {}", username);
         if (response.getError() != null) {
             throw new LastFmException(response.getMessage());
         }

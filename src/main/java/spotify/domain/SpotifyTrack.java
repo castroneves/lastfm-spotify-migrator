@@ -46,4 +46,12 @@ public class SpotifyTrack {
     public void setArtists(List<SpotifyArtist> artists) {
         this.artists = artists;
     }
+
+    @Override
+    public String toString() {
+        return "SpotifyTrack{" +
+                "id='" + id + '\'' +
+                ", name='" + name + '\'' +
+                '}';
+    }
 }

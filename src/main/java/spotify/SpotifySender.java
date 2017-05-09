@@ -16,11 +16,13 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.toList;
 
@@ -114,6 +116,26 @@ public class SpotifySender {
         return Optional.empty();
     }
 
+    private <T> Optional<T> withRetries(Class<T> clazz, Supplier<Response> func) {
+        int exceptions = 0;
+        do {
+            Response response = func.get();
+            if (response.getStatus() == 429) {
+                try {
+                    Thread.sleep(1500);
+                } catch (InterruptedException e) {}
+                continue;
+            }
+            try {
+                return Optional.of(response.readEntity(clazz));
+            } catch (Exception e) {
+                ++exceptions;
+            }
+        } while (exceptions < MAX_RETRIES);
+        logger.warn("Timeout, empty reponse being returned");
+        return Optional.empty();
+    }
+
     public List<SpotifyTrackSearchResponse> searchForTracks(List<Track> inputTracks, AccessToken token) {
         List<Track> tracks = new ArrayList<>(inputTracks);
         List<SpotifyTrackSearchResponse> result = new ArrayList<>();
@@ -170,11 +192,15 @@ public class SpotifySender {
 
 
     public SpotifyCreatePlaylistResponse createPlaylist(String name, boolean isPublic, String ownerId, AccessToken token) {
-        WebTarget resource = client.target("https://api.spotify.com/v1/users/" + ownerId + "/playlists");
-        return resource.request(MediaType.APPLICATION_JSON_TYPE)
-                .header("Authorization", "Bearer " + token.getAccessToken())
-                .accept(MediaType.APPLICATION_JSON_TYPE)
-                .post(Entity.json(new SpotifyCreatePlaylistRequest(name, isPublic)), SpotifyCreatePlaylistResponse.class);
+        final WebTarget resource = client.target("https://api.spotify.com/v1/users/" + ownerId + "/playlists");
+        final Entity<SpotifyCreatePlaylistRequest> json = Entity.json(new SpotifyCreatePlaylistRequest(name, isPublic));
+        Optional<SpotifyCreatePlaylistResponse> result = withRetries(SpotifyCreatePlaylistResponse.class, () ->
+                        resource.request(MediaType.APPLICATION_JSON_TYPE)
+                                .header("Authorization", "Bearer " + token.getAccessToken())
+                                .accept(MediaType.APPLICATION_JSON_TYPE)
+                                .post(json)
+        );
+        return result.orElseThrow(() -> new RuntimeException("Playlist not created after retries"));
     }
 
     public void addTrackToPlaylist(String playlistId, String ownerId, String trackId, AccessToken token) {
@@ -194,8 +220,9 @@ public class SpotifySender {
         logger.debug("Sending tracks request");
         SpotifyAddToPlaylistRequest request = new SpotifyAddToPlaylistRequest(tracks);
         WebTarget resource = client.target("https://api.spotify.com/v1/users/" + ownerId + "/playlists/" + playlistId + "/tracks");
-        resource.request(MediaType.APPLICATION_JSON_TYPE).header("Authorization", "Bearer " + token.getAccessToken())
+        withRetries(SpotifyCreatePlaylistResponse.class, () -> resource.request(MediaType.APPLICATION_JSON_TYPE).header("Authorization", "Bearer " + token.getAccessToken())
                 .accept(MediaType.APPLICATION_JSON_TYPE)
-                .post(Entity.json(request), SpotifyCreatePlaylistResponse.class);
+                .post(Entity.json(request))
+        );
     }
 }

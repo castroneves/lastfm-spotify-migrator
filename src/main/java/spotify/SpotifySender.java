@@ -48,9 +48,10 @@ public class SpotifySender {
     }
 
     public UserProfile getUserId(final String accessCode) {
+        logger.info("Fetching profile");
         WebTarget resource = client.target("https://api.spotify.com/v1/me");
-        return resource.request().header("Authorization", "Bearer " + accessCode).accept(MediaType.APPLICATION_JSON_TYPE)
-                .get(UserProfile.class);
+        return withRetries(UserProfile.class, () -> resource.request().header("Authorization", "Bearer " + accessCode).accept(MediaType.APPLICATION_JSON_TYPE)
+                .get()).orElseThrow(() -> new RuntimeException("Unable to fetch user profile"));
     }
 
     public AccessToken getAuthToken(final String authCode, final String redirectUrl) {
@@ -192,6 +193,7 @@ public class SpotifySender {
 
 
     public SpotifyCreatePlaylistResponse createPlaylist(String name, boolean isPublic, String ownerId, AccessToken token) {
+        logger.info("Creating playlist");
         final WebTarget resource = client.target("https://api.spotify.com/v1/users/" + ownerId + "/playlists");
         final Entity<SpotifyCreatePlaylistRequest> json = Entity.json(new SpotifyCreatePlaylistRequest(name, isPublic));
         Optional<SpotifyCreatePlaylistResponse> result = withRetries(SpotifyCreatePlaylistResponse.class, () ->
@@ -217,7 +219,7 @@ public class SpotifySender {
     }
 
     private void addTracksInPartitionToPlaylist(String playlistId, String ownerId, List<String> tracks, AccessToken token) {
-        logger.debug("Sending tracks request");
+        logger.info("Adding tracks to partition");
         SpotifyAddToPlaylistRequest request = new SpotifyAddToPlaylistRequest(tracks);
         WebTarget resource = client.target("https://api.spotify.com/v1/users/" + ownerId + "/playlists/" + playlistId + "/tracks");
         withRetries(SpotifyCreatePlaylistResponse.class, () -> resource.request(MediaType.APPLICATION_JSON_TYPE).header("Authorization", "Bearer " + token.getAccessToken())

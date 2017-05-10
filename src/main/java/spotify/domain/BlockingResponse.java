@@ -10,10 +10,12 @@ import java.util.Optional;
 public class BlockingResponse {
     private Optional<SpotifyTrackSearchResponse> response;
     private Track track;
+    private int status;
 
-    public BlockingResponse(Optional<SpotifyTrackSearchResponse> response, Track track) {
+    public BlockingResponse(Optional<SpotifyTrackSearchResponse> response, Track track, int status) {
         this.response = response;
         this.track = track;
+        this.status = status;
     }
 
     public Optional<SpotifyTrackSearchResponse> getResponse() {
@@ -22,5 +24,9 @@ public class BlockingResponse {
 
     public Track getTrack() {
         return track;
+    }
+
+    public int getStatus() {
+        return status;
     }
 }

@@ -17,12 +17,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 
@@ -82,19 +81,22 @@ public class SpotifySender {
                 .queryParam("type", "track")
                 .queryParam("q", "artist:" + track.getArtist() + " track:" + track.getName());
 
-        Future<SpotifyTrackSearchResponse> future = resource.request().header("Authorization", "Bearer " + token.getAccessToken()).accept(MediaType.APPLICATION_JSON_TYPE).async()
-                .get(SpotifyTrackSearchResponse.class);
+        Future<Response> future = resource.request().header("Authorization", "Bearer " + token.getAccessToken()).accept(MediaType.APPLICATION_JSON_TYPE).async()
+                .get();
         return new SearchResponseTuple(future, track);
     }
 
     private static BlockingResponse blockForResult(SearchResponseTuple responseTuple) {
+        int status = -1;
         try {
-            Optional<SpotifyTrackSearchResponse> result = Optional.of(responseTuple.getFuture().get(TIMEOUT_SUBSEQUENT_MILLIS, TimeUnit.MILLISECONDS));
+            Response result = responseTuple.getFuture().get(TIMEOUT_SUBSEQUENT_MILLIS, TimeUnit.MILLISECONDS);
+            status = result.getStatus();
+            Optional<SpotifyTrackSearchResponse> response = Optional.of(result.readEntity(SpotifyTrackSearchResponse.class));
 //                logger.info("Returning track {} with errors {}", result.get(),errors);
 
-            return new BlockingResponse(result, responseTuple.getTrack());
+            return new BlockingResponse(response, responseTuple.getTrack(),status);
         } catch (Exception e) {
-            return new BlockingResponse(Optional.empty(), responseTuple.getTrack());
+            return new BlockingResponse(Optional.empty(), responseTuple.getTrack(), status);
         }
     }
 
@@ -141,6 +143,7 @@ public class SpotifySender {
         List<Track> tracks = new ArrayList<>(inputTracks);
         List<SpotifyTrackSearchResponse> result = new ArrayList<>();
         List<Track> failures;
+        Set<Integer> statusCodes = new HashSet<>();
         do {
             List<SearchResponseTuple> futures = tracks.stream()
                     .map(t -> searchForTrackAsync(t, token))
@@ -155,13 +158,20 @@ public class SpotifySender {
                     .map(r -> new SpotifyTrackSearchResponse(r.getResponse().get(), r.getTrack().getRankValue()))
                     .collect(toList()));
 
+            statusCodes.addAll(initial.stream().map(r -> r.getStatus()).collect(Collectors.toList()));
+
             failures = initial.stream()
                     .filter(o -> !o.getResponse().isPresent())
+                    .filter(r -> r.getStatus() == 429 || r.getStatus() == -1)
                     .map(BlockingResponse::getTrack)
                     .collect(toList());
             tracks = failures;
             logger.info("Results: {} Failures: {}", result.size(), failures.size());
+            try {
+                Thread.sleep( 1500);
+            } catch (InterruptedException e) {}
         } while (failures.size() > 0);
+        logger.info("statuscodes {}", statusCodes);
         return result.stream().sorted((x, y) -> x.getRank().compareTo(y.getRank())).collect(toList());
     }
 
